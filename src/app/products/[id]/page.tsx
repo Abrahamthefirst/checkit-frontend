@@ -2,8 +2,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { RelatedProducts } from "@/components/related-product";
+import { RelatedProductsSkeleton } from "@/components/related-product-skeleton";
+import { Suspense } from "react";
 import { getProductById } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { NotFoundError } from "@/lib/api";
 
 type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -31,17 +35,22 @@ export async function generateMetadata({
         ],
       },
     };
-  } catch {
-    return {
-      title: "Product not found | Content Explorer",
-      description: "The requested product could not be found.",
-    };
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return {
+        title: "Product not found | Content Explorer",
+        description: "The requested product could not be found.",
+      };
+    }
+    throw error;
   }
 }
 
 export const revalidate = 300;
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({
+  params,
+}: ProductDetailPageProps) {
   try {
     const { id } = await params;
     const product = await getProductById(id);
@@ -78,11 +87,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm text-slate-500">Price</p>
-                <p className="mt-1 text-xl font-semibold">{formatCurrency(product.price)}</p>
+                <p className="mt-1 text-xl font-semibold">
+                  {formatCurrency(product.price)}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm text-slate-500">Rating</p>
-                <p className="mt-1 text-xl font-semibold">{product.rating.toFixed(1)}</p>
+                <p className="mt-1 text-xl font-semibold">
+                  {product.rating.toFixed(1)}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm text-slate-500">Stock</p>
@@ -90,14 +103,25 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm text-slate-500">Brand</p>
-                <p className="mt-1 text-xl font-semibold">{product.brand ?? "Unknown"}</p>
+                <p className="mt-1 text-xl font-semibold">
+                  {product.brand ?? "Unknown"}
+                </p>
               </div>
             </div>
           </div>
         </section>
+        <Suspense fallback={<RelatedProductsSkeleton />}>
+          <RelatedProducts
+            category={product.category}
+            currentProductId={product.id}
+          />
+        </Suspense>
       </main>
     );
-  } catch {
-    notFound();
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      notFound();
+    }
+    throw error;
   }
 }

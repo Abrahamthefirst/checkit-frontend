@@ -1,8 +1,15 @@
 import { z } from "zod";
-import { Product, ProductsResponse, ProductCategory} from "@/types/products";
+import { Product, ProductsResponse, ProductCategory } from "@/types/products";
 
 const BASE_URL = "https://dummyjson.com/";
 const REVALIDATE_SECONDS = 300;
+
+export class NotFoundError extends Error {
+  constructor(message = "Resource not found") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
 
 const productSchema = z.object({
   id: z.number(),
@@ -45,6 +52,9 @@ async function fetchJson<T>(
     next: { revalidate: REVALIDATE_SECONDS },
   });
 
+  if (response.status === 404) {
+    throw new NotFoundError(`404 for ${url}`);
+  }
   if (!response.ok) {
     throw new Error(`API request failed with status ${response.status}`);
   }
@@ -106,4 +116,23 @@ export async function getProductById(id: string): Promise<Product> {
 
 export async function getCategories(): Promise<ProductCategory[]> {
   return fetchJson(`${BASE_URL}/products/categories`, categoriesResponseSchema);
+}
+
+export async function getProductsByCategory(params: {
+  category: string;
+  limit?: number;
+  excludeId?: number;
+}): Promise<Product[]> {
+  const limit = params.limit ?? 4;
+
+  const url = new URL(
+    `${BASE_URL}/products/category/${encodeURIComponent(params.category)}`,
+  );
+  url.searchParams.set("limit", String(limit + 1));
+
+  const data = await fetchJson(url.toString(), productsResponseSchema);
+
+  return data.products
+    .filter((product) => product.id !== params.excludeId)
+    .slice(0, limit);
 }
