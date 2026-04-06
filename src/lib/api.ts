@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Product, ProductsResponse, ProductCategory } from "@/types/products";
 
-const BASE_URL = "https://dummyjson.com/";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const REVALIDATE_SECONDS = 300;
 
 export class NotFoundError extends Error {
